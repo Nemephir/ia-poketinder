@@ -19,7 +19,7 @@ run = async () => {
 
 	const pokemons = ( await pokedex.request( '/pokemon?limit=2000' ) ).data.results
 	for( const p of pokemons ) {
-		const data             = ( await pokedex.request( `/pokemon/1` ) ).data
+		const data             = ( await pokedex.request( `/pokemon/${p.name}` ) ).data
 		const specie           = ( await pokedex.request( `/pokemon-species/${data.name}` ) ).data
 		const evolutionChainId = specie.evolution_chain.url.split( '/' ).filter( v => v.trim().length > 0 ).pop()
 		const evolution        = ( await pokedex.request( `/evolution-chain/${evolutionChainId}` ) ).data
@@ -31,8 +31,10 @@ run = async () => {
 			id          : data.id,
 			name        : data.name,
 			label       : pokemonLang ? pokemonLang.name : data.name,
-			sprite      : data.sprites.front_default,
-			image       : data.sprites.other['official-artwork'].front_default,
+			sprite      : {
+				full : data.sprites.other['official-artwork'].front_default,
+				small: data.sprites.front_default
+			},
 			types       : data.types.map( v => v.type.name ),
 			abilities   : data.abilities.map( v => v.ability.name ),
 			stats       : {
@@ -45,7 +47,11 @@ run = async () => {
 				happiness      : specie.base_happiness
 			},
 			weight      : data.weight,
-			specie      : specie.id,
+			specie      : {
+				id   : specie.id,
+				name : specie.name,
+				label: specieLang ? specieLang.genus : specie.name
+			},
 			color       : specie.color.name,
 			specie_name : specieLang ? specieLang.genus : specie.name,
 			generation  : parseGeneration( specie.generation.name ),
@@ -57,7 +63,7 @@ run = async () => {
 			moves       : data.moves.map( v => {
 				const filtered = v.version_group_details.filter( i => i.level_learned_at > 0 )
 				return {
-					name: v.move.name,
+					name : v.move.name,
 					level: filtered.length > 0 ? filtered.pop().level_learned_at : 0
 				}
 			} ),
@@ -75,12 +81,9 @@ run = async () => {
 		}
 
 		console.log( pokemon )
-
-		process.exit( 1 )
 	}
 
-	console.log( await getType( 'normal' ) )
-	console.log( await getType( 'normal' ) )
+	console.log( '-- fin' )
 	// console.log( await getType('normal') );
 
 	// await fillTypes()
