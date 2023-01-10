@@ -21,69 +21,81 @@ run = async () => {
 
 	const pokemons = ( await pokedex.request( '/pokemon?limit=2000' ) ).data.results
 	for( const p of pokemons ) {
-		const data             = ( await pokedex.request( `/pokemon/${p.name}` ) ).data
-		const specie           = ( await pokedex.request( `/pokemon-species/${data.name}` ) ).data
-		const evolutionChainId = specie.evolution_chain.url.split( '/' ).filter( v => v.trim().length > 0 ).pop()
-		const evolution        = ( await pokedex.request( `/evolution-chain/${evolutionChainId}` ) ).data
+		const data = ( await pokedex.request( `/pokemon/${p.name}` ) ).data
+		try {
+			const id               = p.url.split( '/' ).slice( -2, -1 )[0]
+			const specie           = ( await pokedex.request( `/pokemon-species/${id}` ) ).data
+			const evolutionChainId = specie.evolution_chain.url.split( '/' ).filter( v => v.trim().length > 0 ).pop()
+			const evolution        = ( await pokedex.request( `/evolution-chain/${evolutionChainId}` ) ).data
 
-		const pokemonLang = specie.names.find( v => v.language.name === 'fr' )
-		const specieLang  = specie.genera.find( v => v.language.name === 'fr' )
+			const pokemonLang = specie.names.find( v => v.language.name === 'fr' )
+			const specieLang  = specie.genera.find( v => v.language.name === 'fr' )
 
-		const pokemon = {
-			id          : data.id,
-			name        : data.name,
-			label       : pokemonLang ? pokemonLang.name : data.name,
-			sprite      : {
-				full : data.sprites.other['official-artwork'].front_default,
-				small: data.sprites.front_default
-			},
-			types       : data.types.map( v => v.type.name ),
-			abilities   : data.abilities.map( v => v.ability.name ),
-			stats       : {
-				hp             : data.stats.find( v => v.stat.name === 'hp' ).base_stat,
-				attack         : data.stats.find( v => v.stat.name === 'attack' ).base_stat,
-				defense        : data.stats.find( v => v.stat.name === 'defense' ).base_stat,
-				special_attack : data.stats.find( v => v.stat.name === 'special-attack' ).base_stat,
-				special_defense: data.stats.find( v => v.stat.name === 'special-defense' ).base_stat,
-				speed          : data.stats.find( v => v.stat.name === 'speed' ).base_stat,
-				happiness      : specie.base_happiness
-			},
-			weight      : data.weight,
-			specie      : {
-				id   : specie.id,
-				name : specie.name,
-				label: specieLang ? specieLang.genus : specie.name
-			},
-			color       : specie.color.name,
-			specie_name : specieLang ? specieLang.genus : specie.name,
-			generation  : parseGeneration( specie.generation.name ),
-			habitat     : specie.habitat ? specie.habitat.name : null,
-			is_baby     : specie.is_baby,
-			is_legendary: specie.is_legendary,
-			is_mythical : specie.is_mythical,
-			shape       : specie.shape.name,
-			moves       : data.moves.map( v => {
-				const filtered = v.version_group_details.filter( i => i.level_learned_at > 0 )
-				return {
-					name : v.move.name,
-					level: filtered.length > 0 ? filtered.pop().level_learned_at : 0
-				}
-			} ),
-			evolved_from: specie.evolves_from_species ? specie.evolves_from_species.name : null,
-			evolutions  : parseEvolutions( data.name, evolution )
+			const pokemon = {
+				id          : data.id,
+				name        : data.name,
+				label       : pokemonLang ? pokemonLang.name : data.name,
+				sprite      : {
+					full : data.sprites.other['official-artwork'].front_default,
+					small: data.sprites.front_default
+				},
+				types       : data.types.map( v => v.type.name ),
+				abilities   : data.abilities.map( v => v.ability.name ),
+				stats       : {
+					hp             : data.stats.find( v => v.stat.name === 'hp' ).base_stat,
+					attack         : data.stats.find( v => v.stat.name === 'attack' ).base_stat,
+					defense        : data.stats.find( v => v.stat.name === 'defense' ).base_stat,
+					special_attack : data.stats.find( v => v.stat.name === 'special-attack' ).base_stat,
+					special_defense: data.stats.find( v => v.stat.name === 'special-defense' ).base_stat,
+					speed          : data.stats.find( v => v.stat.name === 'speed' ).base_stat,
+					happiness      : specie.base_happiness
+				},
+				weight      : data.weight,
+				specie      : {
+					id   : specie.id,
+					name : specie.name,
+					label: specieLang ? specieLang.genus : specie.name
+				},
+				color       : specie.color.name,
+				specie_name : specieLang ? specieLang.genus : specie.name,
+				generation  : parseGeneration( specie.generation.name ),
+				habitat     : specie.habitat ? specie.habitat.name : null,
+				is_baby     : specie.is_baby,
+				is_legendary: specie.is_legendary,
+				is_mythical : specie.is_mythical,
+				shape       : specie.shape ? specie.shape.name : null,
+				moves       : data.moves.map( v => {
+					const filtered = v.version_group_details.filter( i => i.level_learned_at > 0 )
+					return {
+						name : v.move.name,
+						level: filtered.length > 0 ? filtered.pop().level_learned_at : 0
+					}
+				} ),
+				evolved_from: specie.evolves_from_species ? specie.evolves_from_species.name : null,
+				evolutions  : parseEvolutions( data.name, evolution )
+			}
+
+			let one = await Pokemon.findOne( { name: pokemon.name } )
+			if( one ) {
+				one = Object.assign( one, pokemon )
+				await one.save()
+			}
+			else {
+				await Pokemon.create( pokemon )
+			}
+
+			console.log( pokemon )
 		}
-
-		let one = await Pokemon.findOne( { name: pokemon.name } )
-		if( one ) {
-			one = Object.assign( one, pokemon )
-			await one.save()
+		catch( e ) {
+			console.log( `  ERROR : ${data.name}  `.bgRed.white )
+			console.log( e )
 		}
-		else {
-			await Pokemon.create( pokemon )
-		}
-
-		console.log( pokemon )
 	}
+
+	// TODO : couleurs
+	// TODO : formes
+	// TODO : moves
+	// TODO : types
 
 	console.log( '-- fin' )
 	// console.log( await getType('normal') );
