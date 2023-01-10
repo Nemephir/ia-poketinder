@@ -7,6 +7,8 @@ const Pokemon = require( './models/Pokemon' )
 const Type    = require( './models/Type' )
 const Cache   = require( './classes/Cache' )
 
+const generations = [ '', 'i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix' ]
+
 const caches = {
 	types: new Cache( 600, async ( name ) => {
 		console.log( `> TYPE: ${name}`.yellow )
@@ -94,27 +96,7 @@ run = async () => {
 run()
 
 const parseGeneration = ( generation ) => {
-	let gen = generation.split( '-' )[1]
-	switch( gen ) {
-		case 'i':
-			return 1
-		case 'ii':
-			return 2
-		case 'iii':
-			return 3
-		case 'iv':
-			return 4
-		case 'v':
-			return 5
-		case 'vi':
-			return 6
-		case 'vii':
-			return 7
-		case 'viii':
-			return 8
-		case 'ix':
-			return 9
-	}
+	return generations.indexOf( generation.split( '-' )[1] )
 }
 
 const parseEvolutions = ( pokemonName, evolutionChain ) => {
