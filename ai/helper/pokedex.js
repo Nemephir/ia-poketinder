@@ -27,3 +27,11 @@ module.exports.getPokemon = async ( id ) => {
 	}
 	return cache.pokemons[id]
 }
+
+module.exports.getTypes = async () => {
+	return ( await request.get( '/type' ) ).data.results
+}
+
+module.exports.getType = async ( id ) => {
+	return ( await request.get( `/type/${id}` ) ).data
+}

@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "ai": "node ai/ai.js"
+    "ai": "node ai/ai.js",
+    "fill": "node ai/fill.js"
   },
   "repository": {
     "type": "git",
