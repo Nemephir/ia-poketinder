@@ -15,6 +15,7 @@ module.exports = mongoose.model( 'Move', new mongoose.Schema( {
 		type    : String,
 		required: true
 	},
+	// effects     : [ {} ],
 	accuracy    : Number,
 	power       : Number,
 	pp          : Number,

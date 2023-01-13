@@ -3,7 +3,10 @@ require( 'colors' )
 const axios = require( 'axios' )
 
 const pokedex = require( './helper/pokedex' )
+const Color   = require( './models/Color' )
+const Move    = require( './models/Move' )
 const Pokemon = require( './models/Pokemon' )
+const Shape   = require( './models/Shape' )
 const Type    = require( './models/Type' )
 const Cache   = require( './classes/Cache' )
 
@@ -19,83 +22,13 @@ const caches = {
 run = async () => {
 	await require( './partials/database' )
 
-	const pokemons = ( await pokedex.request( '/pokemon?limit=2000' ) ).data.results
-	for( const p of pokemons ) {
-		const data = ( await pokedex.request( `/pokemon/${p.name}` ) ).data
-		try {
-			const id               = p.url.split( '/' ).slice( -2, -1 )[0]
-			const specie           = ( await pokedex.request( `/pokemon-species/${id}` ) ).data
-			const evolutionChainId = specie.evolution_chain.url.split( '/' ).filter( v => v.trim().length > 0 ).pop()
-			const evolution        = ( await pokedex.request( `/evolution-chain/${evolutionChainId}` ) ).data
+	// await downloadPokemons()
+	// await downloadTypes()
+	// await downloadColors()
+	// await downloadShapes()
+	await downloadMoves()
 
-			const pokemonLang = specie.names.find( v => v.language.name === 'fr' )
-			const specieLang  = specie.genera.find( v => v.language.name === 'fr' )
-
-			const pokemon = {
-				id          : data.id,
-				name        : data.name,
-				label       : pokemonLang ? pokemonLang.name : data.name,
-				sprite      : {
-					full : data.sprites.other['official-artwork'].front_default,
-					small: data.sprites.front_default
-				},
-				types       : data.types.map( v => v.type.name ),
-				abilities   : data.abilities.map( v => v.ability.name ),
-				stats       : {
-					hp             : data.stats.find( v => v.stat.name === 'hp' ).base_stat,
-					attack         : data.stats.find( v => v.stat.name === 'attack' ).base_stat,
-					defense        : data.stats.find( v => v.stat.name === 'defense' ).base_stat,
-					special_attack : data.stats.find( v => v.stat.name === 'special-attack' ).base_stat,
-					special_defense: data.stats.find( v => v.stat.name === 'special-defense' ).base_stat,
-					speed          : data.stats.find( v => v.stat.name === 'speed' ).base_stat,
-					happiness      : specie.base_happiness
-				},
-				weight      : data.weight,
-				specie      : {
-					id   : specie.id,
-					name : specie.name,
-					label: specieLang ? specieLang.genus : specie.name
-				},
-				color       : specie.color.name,
-				specie_name : specieLang ? specieLang.genus : specie.name,
-				generation  : parseGeneration( specie.generation.name ),
-				habitat     : specie.habitat ? specie.habitat.name : null,
-				is_baby     : specie.is_baby,
-				is_legendary: specie.is_legendary,
-				is_mythical : specie.is_mythical,
-				shape       : specie.shape ? specie.shape.name : null,
-				moves       : data.moves.map( v => {
-					const filtered = v.version_group_details.filter( i => i.level_learned_at > 0 )
-					return {
-						name : v.move.name,
-						level: filtered.length > 0 ? filtered.pop().level_learned_at : 0
-					}
-				} ),
-				evolved_from: specie.evolves_from_species ? specie.evolves_from_species.name : null,
-				evolutions  : parseEvolutions( data.name, evolution )
-			}
-
-			let one = await Pokemon.findOne( { name: pokemon.name } )
-			if( one ) {
-				one = Object.assign( one, pokemon )
-				await one.save()
-			}
-			else {
-				await Pokemon.create( pokemon )
-			}
-
-			console.log( pokemon )
-		}
-		catch( e ) {
-			console.log( `  ERROR : ${data.name}  `.bgRed.white )
-			console.log( e )
-		}
-	}
-
-	// TODO : couleurs
-	// TODO : formes
 	// TODO : moves
-	// TODO : types
 
 	console.log( '-- fin' )
 	// console.log( await getType('normal') );
@@ -106,6 +39,199 @@ run = async () => {
 }
 
 run()
+
+const downloadPokemons = async () => {
+	const count    = ( await pokedex.request( '/pokemon' ) ).data.count
+	const response = ( await pokedex.request( `/pokemon?limit=${count}` ) ).data.results
+	for( const p of response ) {
+		await downloadPokemon( p )
+	}
+}
+
+const downloadPokemon = async ( p ) => {
+	const data = ( await pokedex.request( `/pokemon/${p.name}` ) ).data
+	try {
+		const id               = p.url.split( '/' ).slice( -2, -1 )[0]
+		const specie           = ( await pokedex.request( `/pokemon-species/${id}` ) ).data
+		const evolutionChainId = specie.evolution_chain.url.split( '/' ).filter( v => v.trim().length > 0 ).pop()
+		const evolution        = ( await pokedex.request( `/evolution-chain/${evolutionChainId}` ) ).data
+
+		const pokemonLang = specie.names.find( v => v.language.name === 'fr' )
+		const specieLang  = specie.genera.find( v => v.language.name === 'fr' )
+
+		const pokemon = {
+			id          : data.id,
+			name        : data.name,
+			label       : pokemonLang ? pokemonLang.name : data.name,
+			sprite      : {
+				full : data.sprites.other['official-artwork'].front_default,
+				small: data.sprites.front_default
+			},
+			types       : data.types.map( v => v.type.name ),
+			abilities   : data.abilities.map( v => v.ability.name ),
+			stats       : {
+				hp             : data.stats.find( v => v.stat.name === 'hp' ).base_stat,
+				attack         : data.stats.find( v => v.stat.name === 'attack' ).base_stat,
+				defense        : data.stats.find( v => v.stat.name === 'defense' ).base_stat,
+				special_attack : data.stats.find( v => v.stat.name === 'special-attack' ).base_stat,
+				special_defense: data.stats.find( v => v.stat.name === 'special-defense' ).base_stat,
+				speed          : data.stats.find( v => v.stat.name === 'speed' ).base_stat,
+				happiness      : specie.base_happiness
+			},
+			weight      : data.weight,
+			specie      : {
+				id   : specie.id,
+				name : specie.name,
+				label: specieLang ? specieLang.genus : specie.name
+			},
+			color       : specie.color.name,
+			specie_name : specieLang ? specieLang.genus : specie.name,
+			generation  : parseGeneration( specie.generation.name ),
+			habitat     : specie.habitat ? specie.habitat.name : null,
+			is_baby     : specie.is_baby,
+			is_legendary: specie.is_legendary,
+			is_mythical : specie.is_mythical,
+			shape       : specie.shape ? specie.shape.name : null,
+			moves       : data.moves.map( v => {
+				const filtered = v.version_group_details.filter( i => i.level_learned_at > 0 )
+				return {
+					name : v.move.name,
+					level: filtered.length > 0 ? filtered.pop().level_learned_at : 0
+				}
+			} ),
+			evolved_from: specie.evolves_from_species ? specie.evolves_from_species.name : null,
+			evolutions  : parseEvolutions( data.name, evolution )
+		}
+
+		await createOrUpdate( Pokemon, pokemon )
+
+		console.log( pokemon )
+	}
+	catch( e ) {
+		console.log( `  ERROR : ${data.name}  `.bgRed.white )
+		console.log( e )
+	}
+}
+
+const downloadTypes = async () => {
+	const count    = ( await pokedex.request( '/type' ) ).data.count
+	const response = ( await pokedex.request( `/type?limit=${count}` ) ).data.results
+	for( const t of response ) {
+		await downloadType( t )
+	}
+}
+
+const downloadType = async ( t ) => {
+	const data = ( await pokedex.request( `/type/${t.name}` ) ).data
+	try {
+		const type = {
+			id   : data.id,
+			name : data.name,
+			label: data.names.find( v => v.language.name === 'fr' ).name,
+		}
+
+		await createOrUpdate( Type, type )
+	}
+	catch( e ) {
+		console.log( `  ERROR : ${data.name}  `.bgRed.white )
+		console.log( e )
+	}
+}
+
+const downloadColors = async () => {
+	const count   = ( await pokedex.request( '/pokemon-color' ) ).data.count
+	const response = ( await pokedex.request( `/pokemon-color?limit=${count}` ) ).data.results
+	for( const c of response ) {
+		await downloadColor( c )
+	}
+}
+
+const downloadColor = async ( c ) => {
+	const data = ( await pokedex.request( `/pokemon-color/${c.name}` ) ).data
+	try {
+		const color = {
+			id   : data.id,
+			name : data.name,
+			label: data.names.find( v => v.language.name === 'fr' ).name,
+		}
+
+		await createOrUpdate( Color, color )
+	}
+	catch( e ) {
+		console.log( `  ERROR : ${data.name}  `.bgRed.white )
+		console.log( e )
+	}
+}
+
+const downloadShapes = async () => {
+	const count   = ( await pokedex.request( '/pokemon-shape' ) ).data.count
+	const response = ( await pokedex.request( `/pokemon-shape?limit=${count}` ) ).data.results
+	for( const s of response ) {
+		await downloadShape( s )
+	}
+}
+
+const downloadShape = async ( s ) => {
+	const data = ( await pokedex.request( `/pokemon-shape/${s.name}` ) ).data
+	try {
+		const shape = {
+			id   : data.id,
+			name : data.name,
+			label: data.names.find( v => v.language.name === 'fr' ).name,
+		}
+
+		await createOrUpdate( Shape, shape )
+	}
+	catch( e ) {
+		console.log( `  ERROR : ${data.name}  `.bgRed.white )
+		console.log( e )
+	}
+}
+
+const downloadMoves = async () => {
+const count   = ( await pokedex.request( '/move' ) ).data.count
+	const response = ( await pokedex.request( `/move?limit=${count}` ) ).data.results
+	for( const m of response ) {
+		await downloadMove( m )
+	}
+}
+
+const downloadMove = async ( m ) => {
+	const data = ( await pokedex.request( `/move/${m.name}` ) ).data
+	try {
+		const move = {
+			id         : data.id,
+			name       : data.name,
+			label      : data.names.find( v => v.language.name === 'fr' ).name,
+			power      : data.power,
+			accuracy   : data.accuracy,
+			pp         : data.pp,
+			priority   : data.priority,
+			target     : data.target.name,
+			damage_class: data.damage_class.name,
+			// effects    : data.effect_entries.find( v => v.language.name === 'fr' ).effect,
+			type       : data.type.name
+		}
+
+		await createOrUpdate( Move, move )
+	}
+	catch( e ) {
+		console.log( `  ERROR : ${data.name}  `.bgRed.white )
+		console.log( e )
+	}
+}
+
+
+const createOrUpdate = async ( model, data ) => {
+	let one = await model.findOne( { name: data.name })
+	if( one ) {
+		one = Object.assign( one, data )
+		await one.save()
+	}
+	else {
+		await model.create( data )
+	}
+}
 
 const parseGeneration = ( generation ) => {
 	return generations.indexOf( generation.split( '-' )[1] )
